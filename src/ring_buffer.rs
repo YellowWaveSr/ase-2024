@@ -75,11 +75,30 @@ impl<T: Copy + Default> RingBuffer<T> {
     }
 }
 
+
+
 impl RingBuffer<f32> {
+
+
     // Return the value at at an offset from the current read index.
     // To handle fractional offsets, linearly interpolate between adjacent values. 
+
     pub fn get_frac(&self, offset: f32) -> f32 {
-        todo!("implement")
+        let small_bias : i32 = offset.floor() as i32;
+        let large_bias : i32 = offset.ceil() as i32;
+        let fraction : f32 = offset - (small_bias as f32);
+        //println!("{small_bias}, {large_bias}");
+
+        let total_length : i32 = self.len() as i32;
+        if (small_bias >= total_length) || (large_bias >= total_length)
+        {
+            panic!("Bias is larger than the total length. Abort! {}", total_length);
+        }
+        let small_value : f32 = self.get(small_bias as usize);
+        let large_value : f32 = self.get(large_bias as usize);
+
+        small_value + fraction * (large_value - small_value)
+
     }
 }
 
@@ -195,5 +214,19 @@ mod tests {
         assert_eq!(ring_buffer.get_read_index(), 3);
 
         // NOTE: Negative indices are also weird, but we can't even pass them due to type checking!
+    }
+
+    #[test]
+    fn test_fractional_delay()
+    {
+        let mut ring_buffer_1 : RingBuffer<f32> = RingBuffer::new(10);
+        //let mut ring_buffer_2 : ring_buffer::RingBuffer<i32> = ring_buffer::RingBuffer::new(20);
+        ring_buffer_1.push(1.0);
+        ring_buffer_1.push(1.1);
+        ring_buffer_1.push(1.2);
+        let frac_result : f32 = ring_buffer_1.get_frac(1.0);
+        assert_eq!(frac_result, 1.1);
+        let frac_result : f32 = ring_buffer_1.get_frac(0.2);
+        assert_eq!(frac_result, 1.02); 
     }
 }
